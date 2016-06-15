@@ -5,3 +5,9 @@ body,html{
 	margin: 0;
 	background-color: #000;
 }
+button{
+	top:0;
+	left:0;
+	position:absolute;
+	padding:4px;
+}

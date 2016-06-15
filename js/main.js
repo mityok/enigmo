@@ -23,6 +23,7 @@ var engine;
 var mouseConstraint;
 //
 var boxC;
+var REZ_MULTIPLIER = 2;
 //
 function init() {
 	console.log('init');
@@ -67,9 +68,9 @@ function handleMove(event) {
 	var touches = event.changedTouches;
 	for (var i = 0; i < touches.length; i++) {
 		if(!ongoingTouches[i]){
-			ongoingTouches[i] = {start:{x:touches[i].pageX, y:touches[i].pageY}};
+			ongoingTouches[i] = {start:{x:touches[i].pageX*REZ_MULTIPLIER, y:touches[i].pageY*REZ_MULTIPLIER}};
 		}
-		ongoingTouches[i].current = {x:touches[i].pageX, y:touches[i].pageY};
+		ongoingTouches[i].current = {x:touches[i].pageX*REZ_MULTIPLIER, y:touches[i].pageY*REZ_MULTIPLIER};
 	}
 	//coords.innerHTML = 'x: ' + event.touches[0].pageX + ', y: ' + event.touches[0].pageY;
 }

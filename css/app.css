@@ -11,3 +11,7 @@ button{
 	position:absolute;
 	padding:4px;
 }
+canvas{
+width:400px;
+ height:600px;
+}

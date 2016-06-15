@@ -28,6 +28,8 @@ function init() {
 	console.log('init');
 	canvas = document.getElementById('cvs');
 	context = canvas.getContext('2d');
+	canvas.width = 800 
+	canvas.height = 1200;
 	engine = Engine.create();
 	mouseConstraint = MouseConstraint.create(engine, {
 		mouse: Matter.Mouse.create(canvas)

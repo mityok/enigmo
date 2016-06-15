@@ -6,12 +6,12 @@ body,html{
 	background-color: #000;
 }
 button{
-	top: 0;
-	left: 0;
-	position: absolute;
-	padding: 4px;
+	top:0;
+	left:0;
+	position:absolute;
+	padding:4px;
 }
 canvas{
-	width: calc(1440px/4);
-	height: calc(2560px/4);
+width:calc(1532px/4);
+ height:calc(2560px/4);
 }

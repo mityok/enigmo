@@ -28,7 +28,7 @@ function init() {
 	console.log('init');
 	canvas = document.getElementById('cvs');
 	context = canvas.getContext('2d');
-	canvas.width = 1440/2;
+	canvas.width = 1532/2;
 	canvas.height = 2560/2;
 	engine = Engine.create();
 	mouseConstraint = MouseConstraint.create(engine, {
@@ -249,6 +249,7 @@ function conv(rad) {
 	return rad * (180 / Math.PI);
 }
 //
+var lastLoop = new Date;
 function render() {
 	var bodies = Composite.allBodies(engine.world);
 	window.requestAnimationFrame(render);
@@ -275,4 +276,9 @@ function render() {
 	context.stroke();
 	context.scale(5, 5);
 	context.translate(-100, -100);
+	var thisLoop = new Date;
+    var fps = Math.floor(1000 / (thisLoop - lastLoop));
+    lastLoop = thisLoop;
+	context.font = "12px Arial";
+	context.fillText("fps: " + fps, 100, 50);
 };

@@ -44,8 +44,42 @@ function init() {
 	bindEvents();
 	Engine.run(engine);
 	render();
+	canvas.addEventListener("touchstart", handleStart, false);
+	canvas.addEventListener("touchend", handleEnd, false);
+	canvas.addEventListener("touchcancel", handleCancel, false);
+	canvas.addEventListener("touchmove", handleMove, false);
 }
-
+var ongoingTouches = new Array();
+function handleCancel(event) {
+	event.preventDefault();
+	ongoingTouches.length = 0;
+	console.log('cancel');
+	//coords.innerHTML = 'x: ' + event.touches[0].pageX + ', y: ' + event.touches[0].pageY;
+}
+function handleEnd(event) {
+	event.preventDefault();
+	ongoingTouches.length = 0;
+	console.log('end');
+	//coords.innerHTML = 'x: ' + event.touches[0].pageX + ', y: ' + event.touches[0].pageY;
+}
+function handleMove(event) {
+	event.preventDefault();
+	var touches = event.changedTouches;
+	for (var i = 0; i < touches.length; i++) {
+		if(!ongoingTouches[i]){
+			ongoingTouches[i] = {start:{x:touches[i].pageX, y:touches[i].pageY}};
+		}
+		ongoingTouches[i].current = {x:touches[i].pageX, y:touches[i].pageY};
+	}
+	//coords.innerHTML = 'x: ' + event.touches[0].pageX + ', y: ' + event.touches[0].pageY;
+}
+function handleStart(event) {
+	event.preventDefault();
+	var touches = event.changedTouches;
+	for (var i = 0; i < touches.length; i++) {
+		console.log(i);
+	}
+}
 function generateDrops() {
 	for (var i = 0; i < 100; i++) {
 		setTimeout(function() {
@@ -276,9 +310,16 @@ function render() {
 	context.stroke();
 	context.scale(5, 5);
 	context.translate(-100, -100);
+	//
+	for (var i = 0; i < ongoingTouches.length; i++) {
+		context.fillStyle = '#00ff00';
+		context.fillRect(ongoingTouches[i].current.x, ongoingTouches[i].current.y, 10, 10);
+	}
+	//
 	var thisLoop = new Date;
     var fps = Math.floor(1000 / (thisLoop - lastLoop));
     lastLoop = thisLoop;
 	context.font = "12px Arial";
 	context.fillText("fps: " + fps, 100, 50);
+	
 };

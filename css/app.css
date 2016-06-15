@@ -12,6 +12,6 @@ button{
 	padding:4px;
 }
 canvas{
-width:400px;
- height:600px;
+width:calc(1600px/4);
+ height:calc(2560px/4);
 }

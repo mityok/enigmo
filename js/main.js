@@ -28,8 +28,8 @@ function init() {
 	console.log('init');
 	canvas = document.getElementById('cvs');
 	context = canvas.getContext('2d');
-	canvas.width = 800 
-	canvas.height = 1200;
+	canvas.width = 1600/2;
+	canvas.height = 2560/2;
 	engine = Engine.create();
 	mouseConstraint = MouseConstraint.create(engine, {
 		mouse: Matter.Mouse.create(canvas)
@@ -252,8 +252,10 @@ function conv(rad) {
 function render() {
 	var bodies = Composite.allBodies(engine.world);
 	window.requestAnimationFrame(render);
-	context.fillStyle = '#fff';
+	context.fillStyle = '#f00';
 	context.fillRect(0, 0, canvas.width, canvas.height);
+	context.fillStyle = '#fff';
+	context.fillRect(10, 10, canvas.width-20, canvas.height-20);
 	context.fillStyle = '#ccc';
 	context.font = "12px Arial";
 	context.fillText("Hits: " + count, 10, 50);

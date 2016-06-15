@@ -12,5 +12,8 @@ function launchIntoFullscreen(element) {
   } else if(element.msRequestFullscreen) {
     element.msRequestFullscreen();
   }
+  setTimeout(function(){
+	  alert(window.devicePixelRatio);
+  },1000)
 }
 

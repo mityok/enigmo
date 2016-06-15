@@ -28,7 +28,7 @@ function init() {
 	console.log('init');
 	canvas = document.getElementById('cvs');
 	context = canvas.getContext('2d');
-	canvas.width = 1600/2;
+	canvas.width = 1440/2;
 	canvas.height = 2560/2;
 	engine = Engine.create();
 	mouseConstraint = MouseConstraint.create(engine, {

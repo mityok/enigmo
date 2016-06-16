@@ -24,6 +24,7 @@ var mouseConstraint;
 //
 var boxC;
 var REZ_MULTIPLIER = 2;
+var zooming=false;
 //
 function init() {
 	console.log('init');
@@ -53,17 +54,31 @@ function init() {
 var ongoingTouches = new Array();
 function handleCancel(event) {
 	event.preventDefault();
+	zooming=false;
 	ongoingTouches.length = 0;
+	zoomLevelFinal = zoomLevel;
+	transformBounds.prev.x = transformBounds.min.x;
+	transformBounds.prev.y = transformBounds.min.y;
 	console.log('cancel');
 	//coords.innerHTML = 'x: ' + event.touches[0].pageX + ', y: ' + event.touches[0].pageY;
 }
 function handleEnd(event) {
 	event.preventDefault();
+	zooming=false;
 	ongoingTouches.length = 0;
+	zoomLevelFinal = zoomLevel;
+	transformBounds.prev.x = transformBounds.min.x;
+	transformBounds.prev.y = transformBounds.min.y;
 	console.log('end');
+	moving = false;
 	//coords.innerHTML = 'x: ' + event.touches[0].pageX + ', y: ' + event.touches[0].pageY;
 }
 function handleMove(event) {
+	if(moving){
+		return;
+	}
+	zooming=true;
+	console.log("handleMove",moving);
 	event.preventDefault();
 	var touches = event.changedTouches;
 	for (var i = 0; i < touches.length; i++) {
@@ -74,15 +89,18 @@ function handleMove(event) {
 	}
 	//coords.innerHTML = 'x: ' + event.touches[0].pageX + ', y: ' + event.touches[0].pageY;
 }
+
 function handleStart(event) {
 	event.preventDefault();
+	/*
 	var touches = event.changedTouches;
 	for (var i = 0; i < touches.length; i++) {
 		console.log(i);
 	}
+	*/
 }
 function generateDrops() {
-	for (var i = 0; i < 100; i++) {
+	for (var i = 0; i < 1; i++) {
 		setTimeout(function() {
 			var circ = Bodies.circle(400, 200, 5, {
 				restitution: 0.9,
@@ -150,7 +168,10 @@ var offset = {
 	x: 0,
 	y: 0
 };
-
+var zoomLevelFinal = 1,zoomLevel = 1;
+var transformBounds = {min:{x:0,y:0},prev:{x:0,y:0}};
+//var transformBounds = {min:{x:-100,y:-100},max:{}};
+var transformScale = {x:1,y:1};
 function bindEvents() {
 	Events.on(mouseConstraint, "mousemove", function(e) {
 		posX = e.mouse.position.x;
@@ -158,10 +179,14 @@ function bindEvents() {
 	});
 
 	Events.on(mouseConstraint, "startdrag", function(e) {
+		if(zooming){
+			return;
+		}
 		dir *= -1;
 		angInit = Math.atan((boxC.position.y - e.mouse.position.y) / (boxC.position.x - e.mouse.position.x));
 		currentAngle = boxC.angle;
 		moving = true;
+		console.log("startdrag",moving);
 		offset.y = boxC.position.y - e.mouse.position.y;
 		offset.x = boxC.position.x - e.mouse.position.x;
 	});
@@ -184,10 +209,12 @@ function bindEvents() {
 	});
 
 	Events.on(engine, 'beforeTick', function(event) {
+		/*
 		engine.world.bounds.min.x = -300;
 		engine.world.bounds.min.y = -300;
 		engine.world.bounds.max.x = 2000;
 		engine.world.bounds.max.y = 2000;
+		*/
 		//Mouse.setOffset(mouseConstraint.mouse, {x:100,y:100});
 		var bounds = {
 			min: {
@@ -218,10 +245,36 @@ function bindEvents() {
 				y: 400
 			}
 		};
-		Mouse.setScale(mouseConstraint.mouse, boundsScale);
-		Mouse.setOffset(mouseConstraint.mouse, bounds.min);
-
-
+		//Mouse.setScale(mouseConstraint.mouse, boundsScale);
+		//Mouse.setOffset(mouseConstraint.mouse, bounds.min);
+		if(ongoingTouches && ongoingTouches.length>=2){
+			var a = ongoingTouches[0];
+			var b = ongoingTouches[1];
+			var distStart = Math.sqrt(Math.pow(a.current.x-b.current.x,2)+Math.pow(a.current.y-b.current.y,2));
+			var distCurrent = Math.sqrt(Math.pow(a.start.x-b.start.x,2)+Math.pow(a.start.y-b.start.y,2));
+			var scale = (distStart / distCurrent);
+			//zoomLevel=0.5
+			if(Math.abs(scale*zoomLevelFinal - zoomLevel) > 0.01){
+				zoomLevel = scale*zoomLevelFinal;
+				transformScale.x=transformScale.y=1/zoomLevel;
+				Mouse.setScale(mouseConstraint.mouse, transformScale);
+			}
+		}else if(ongoingTouches && ongoingTouches.length == 1){
+			var a = ongoingTouches[0];
+			//var distStart = Math.sqrt(Math.pow(a.current.x-b.current.x,2)+Math.pow(a.current.y-b.current.y,2));
+			//transformBounds.min.x = transformBounds.prev.x - a.current.x;
+			//transformBounds.min.x = (transformBounds.prev.x+(a.start.x-a.current.x))*transformScale.x;
+			//transformBounds.min.y = (transformBounds.prev.y+(a.start.y-a.current.y))*transformScale.y;
+			transformBounds.min.x = (transformBounds.prev.x+(a.start.x-a.current.x))*transformScale.x;
+			transformBounds.min.y = (transformBounds.prev.y+(a.start.y-a.current.y))*transformScale.y;
+			Mouse.setOffset(mouseConstraint.mouse, transformBounds.min);
+			/*
+			a.current.x;
+				transformBounds.prev.x= transformBounds.min.x;
+	transformBounds.prev.y= transformBounds.min.y;
+			transformBounds = {min:{x:-100,y:-100},max:{}};
+			*/
+		}
 	});
 	Events.on(engine, 'afterUpdate', function(event) {
 		for (var i = 0; i < bodies.length; i++) {
@@ -285,6 +338,13 @@ function conv(rad) {
 }
 //
 var lastLoop = new Date;
+function rotateAndPaintImage ( context, image, angleInRad , positionX, positionY, axisX, axisY ) {
+  context.translate( positionX, positionY );
+  context.rotate( angleInRad );
+  context.drawImage( image, -axisX, -axisY );
+  context.rotate( -angleInRad );
+  context.translate( -positionX, -positionY );
+}
 function render() {
 	var bodies = Composite.allBodies(engine.world);
 	window.requestAnimationFrame(render);
@@ -295,10 +355,15 @@ function render() {
 	context.fillStyle = '#ccc';
 	context.font = "12px Arial";
 	context.fillText("Hits: " + count, 10, 50);
-	context.translate(100, 100);
-	context.scale(0.2, 0.2);
+	context.translate(-transformBounds.min.x/transformScale.x, -transformBounds.min.y/transformScale.y);
+	context.scale(1/transformScale.x, 1/transformScale.y);
 	context.beginPath();
 	for (var i = 0; i < bodies.length; i += 1) {
+		if(bodies[i].label=='pad'){
+			
+		rotateAndPaintImage (context,img,bodies[i].angle,bodies[i].position.x, bodies[i].position.y,75,20);
+		//context.drawImage(img, bodies[i].position.x-75, bodies[i].position.y-20);
+		}
 		var vertices = bodies[i].vertices;
 		context.moveTo(vertices[0].x, vertices[0].y);
 		for (var j = 1; j < vertices.length; j += 1) {
@@ -309,18 +374,26 @@ function render() {
 	context.lineWidth = 1;
 	context.strokeStyle = '#ff0000';
 	context.stroke();
-	context.scale(5, 5);
-	context.translate(-100, -100);
+	
+	context.scale(transformScale.x, transformScale.y);
+	context.translate(transformBounds.min.x/transformScale.x, transformBounds.min.y/transformScale.y);
+	//context.translate(transformBounds.min.x, transformBounds.min.y);
 	//
 	for (var i = 0; i < ongoingTouches.length; i++) {
 		context.fillStyle = '#00ff00';
 		context.fillRect(ongoingTouches[i].current.x, ongoingTouches[i].current.y, 10, 10);
 	}
 	//
+	
 	var thisLoop = new Date;
     var fps = Math.floor(1000 / (thisLoop - lastLoop));
     lastLoop = thisLoop;
+	context.fillStyle = '#ccc';
 	context.font = "12px Arial";
 	context.fillText("fps: " + fps, 100, 50);
-	
 };
+var img = new Image();
+
+
+img.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAAAoCAYAAAAcwQPnAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyFpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuNS1jMDIxIDc5LjE1NDkxMSwgMjAxMy8xMC8yOS0xMTo0NzoxNiAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENDIChXaW5kb3dzKSIgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDpCNzE5QUM1QTMzQUMxMUU2OTJBQ0IwMUVEMDI5MjA3NiIgeG1wTU06RG9jdW1lbnRJRD0ieG1wLmRpZDpCNzE5QUM1QjMzQUMxMUU2OTJBQ0IwMUVEMDI5MjA3NiI+IDx4bXBNTTpEZXJpdmVkRnJvbSBzdFJlZjppbnN0YW5jZUlEPSJ4bXAuaWlkOkI3MTlBQzU4MzNBQzExRTY5MkFDQjAxRUQwMjkyMDc2IiBzdFJlZjpkb2N1bWVudElEPSJ4bXAuZGlkOkI3MTlBQzU5MzNBQzExRTY5MkFDQjAxRUQwMjkyMDc2Ii8+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+O/bijAAAAH5JREFUeNrs26ENwDAMRcGfKlNmwKzpqjTEpCrpHQ6ynhzkmdQOvOwyAoSFsBAWCAth8WOze1CVZUycxsi2sfAVIiwQFsJCWCAshIWwQFgIC2GBsBAWwgJhISyEBcJCWAgLhIWwEBY82oPV7jARbCyEhbBAWAgLYYGw+MAtwABFfAWkojryHgAAAABJRU5ErkJggg==";
+

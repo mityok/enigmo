@@ -57,16 +57,19 @@ function handleCancel(event) {
 	zooming=false;
 	ongoingTouches.length = 0;
 	zoomLevelFinal = zoomLevel;
+	handleMoveStarted=false;
 	transformBounds.prev.x = transformBounds.min.x;
 	transformBounds.prev.y = transformBounds.min.y;
+	moving = false;
 	console.log('cancel');
 	//coords.innerHTML = 'x: ' + event.touches[0].pageX + ', y: ' + event.touches[0].pageY;
 }
 function handleEnd(event) {
 	event.preventDefault();
-	zooming=false;
+	zooming = false;
 	ongoingTouches.length = 0;
 	zoomLevelFinal = zoomLevel;
+	handleMoveStarted=false;
 	transformBounds.prev.x = transformBounds.min.x;
 	transformBounds.prev.y = transformBounds.min.y;
 	console.log('end');
@@ -77,7 +80,8 @@ function handleMove(event) {
 	if(moving){
 		return;
 	}
-	zooming=true;
+	handleMoveStarted=true;
+	//always fired before startdrag
 	console.log("handleMove",moving);
 	event.preventDefault();
 	var touches = event.changedTouches;
@@ -87,6 +91,14 @@ function handleMove(event) {
 		}
 		ongoingTouches[i].current = {x:touches[i].pageX*REZ_MULTIPLIER, y:touches[i].pageY*REZ_MULTIPLIER};
 	}
+	
+	setTimeout(function(){
+		console.log("handleMove timeout, moving:",moving,'zooming:',zooming);
+		if(!moving && handleMoveStarted){
+			zooming = true;
+		}
+	},100);
+	
 	//coords.innerHTML = 'x: ' + event.touches[0].pageX + ', y: ' + event.touches[0].pageY;
 }
 
@@ -100,7 +112,7 @@ function handleStart(event) {
 	*/
 }
 function generateDrops() {
-	for (var i = 0; i < 1; i++) {
+	for (var i = 0; i < 100; i++) {
 		setTimeout(function() {
 			var circ = Bodies.circle(400, 200, 5, {
 				restitution: 0.9,
@@ -179,6 +191,7 @@ function bindEvents() {
 	});
 
 	Events.on(mouseConstraint, "startdrag", function(e) {
+		console.log("startdrag",moving,zooming);
 		if(zooming){
 			return;
 		}
@@ -186,7 +199,6 @@ function bindEvents() {
 		angInit = Math.atan((boxC.position.y - e.mouse.position.y) / (boxC.position.x - e.mouse.position.x));
 		currentAngle = boxC.angle;
 		moving = true;
-		console.log("startdrag",moving);
 		offset.y = boxC.position.y - e.mouse.position.y;
 		offset.x = boxC.position.x - e.mouse.position.x;
 	});
@@ -261,19 +273,9 @@ function bindEvents() {
 			}
 		}else if(ongoingTouches && ongoingTouches.length == 1){
 			var a = ongoingTouches[0];
-			//var distStart = Math.sqrt(Math.pow(a.current.x-b.current.x,2)+Math.pow(a.current.y-b.current.y,2));
-			//transformBounds.min.x = transformBounds.prev.x - a.current.x;
-			//transformBounds.min.x = (transformBounds.prev.x+(a.start.x-a.current.x))*transformScale.x;
-			//transformBounds.min.y = (transformBounds.prev.y+(a.start.y-a.current.y))*transformScale.y;
-			transformBounds.min.x = (transformBounds.prev.x+(a.start.x-a.current.x))*transformScale.x;
-			transformBounds.min.y = (transformBounds.prev.y+(a.start.y-a.current.y))*transformScale.y;
+			transformBounds.min.x = transformBounds.prev.x+(a.start.x-a.current.x)*transformScale.x;
+			transformBounds.min.y = transformBounds.prev.y+(a.start.y-a.current.y)*transformScale.y;
 			Mouse.setOffset(mouseConstraint.mouse, transformBounds.min);
-			/*
-			a.current.x;
-				transformBounds.prev.x= transformBounds.min.x;
-	transformBounds.prev.y= transformBounds.min.y;
-			transformBounds = {min:{x:-100,y:-100},max:{}};
-			*/
 		}
 	});
 	Events.on(engine, 'afterUpdate', function(event) {
@@ -339,11 +341,13 @@ function conv(rad) {
 //
 var lastLoop = new Date;
 function rotateAndPaintImage ( context, image, angleInRad , positionX, positionY, axisX, axisY ) {
-  context.translate( positionX, positionY );
-  context.rotate( angleInRad );
-  context.drawImage( image, -axisX, -axisY );
-  context.rotate( -angleInRad );
-  context.translate( -positionX, -positionY );
+	context.save(); 
+	context.translate( positionX, positionY );
+	context.rotate( angleInRad );
+	context.drawImage( image, -axisX, -axisY );
+	context.restore();
+  //context.rotate( -angleInRad );
+  //context.translate( -positionX, -positionY );
 }
 function render() {
 	var bodies = Composite.allBodies(engine.world);

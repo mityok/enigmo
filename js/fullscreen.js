@@ -13,7 +13,7 @@ function launchIntoFullscreen(element) {
     element.msRequestFullscreen();
   }
   setTimeout(function(){
-	  alert(window.devicePixelRatio+ ' : '+ screen.width+ ' : '+screen.height+ ' : '+screen.availWidth+ ' : '+screen.availHeight+ ' : '+window.innerWidth+ ' : '+window.innerHeight+ ' : '+document.documentElement.clientWidth+ ' : '+document.documentElement.clientHeight);
+	  //alert(window.devicePixelRatio+ ' : '+ screen.width+ ' : '+screen.height+ ' : '+screen.availWidth+ ' : '+screen.availHeight+ ' : '+window.innerWidth+ ' : '+window.innerHeight+ ' : '+document.documentElement.clientWidth+ ' : '+document.documentElement.clientHeight);
   },100)
 }
 

@@ -62,7 +62,6 @@ function handleCancel(event) {
 	transformBounds.prev.y = transformBounds.min.y;
 	moving = false;
 	console.log('cancel');
-	//coords.innerHTML = 'x: ' + event.touches[0].pageX + ', y: ' + event.touches[0].pageY;
 }
 function handleEnd(event) {
 	event.preventDefault();
@@ -74,7 +73,6 @@ function handleEnd(event) {
 	transformBounds.prev.y = transformBounds.min.y;
 	console.log('end');
 	moving = false;
-	//coords.innerHTML = 'x: ' + event.touches[0].pageX + ', y: ' + event.touches[0].pageY;
 }
 function handleMove(event) {
 	if(moving){
@@ -98,18 +96,10 @@ function handleMove(event) {
 			zooming = true;
 		}
 	},100);
-	
-	//coords.innerHTML = 'x: ' + event.touches[0].pageX + ', y: ' + event.touches[0].pageY;
 }
 
 function handleStart(event) {
 	event.preventDefault();
-	/*
-	var touches = event.changedTouches;
-	for (var i = 0; i < touches.length; i++) {
-		console.log(i);
-	}
-	*/
 }
 function generateDrops() {
 	for (var i = 0; i < 100; i++) {
@@ -359,6 +349,7 @@ function render() {
 	context.fillStyle = '#ccc';
 	context.font = "12px Arial";
 	context.fillText("Hits: " + count, 10, 50);
+	context.save(); 
 	context.translate(-transformBounds.min.x/transformScale.x, -transformBounds.min.y/transformScale.y);
 	context.scale(1/transformScale.x, 1/transformScale.y);
 	context.beginPath();
@@ -378,11 +369,7 @@ function render() {
 	context.lineWidth = 1;
 	context.strokeStyle = '#ff0000';
 	context.stroke();
-	
-	context.scale(transformScale.x, transformScale.y);
-	context.translate(transformBounds.min.x/transformScale.x, transformBounds.min.y/transformScale.y);
-	//context.translate(transformBounds.min.x, transformBounds.min.y);
-	//
+	context.restore();
 	for (var i = 0; i < ongoingTouches.length; i++) {
 		context.fillStyle = '#00ff00';
 		context.fillRect(ongoingTouches[i].current.x, ongoingTouches[i].current.y, 10, 10);

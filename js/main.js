@@ -342,7 +342,7 @@ function conv(rad) {
 	return rad * (180 / Math.PI);
 }
 //
-var lastLoop = new Date;
+
 function rotateAndPaintImage ( context, image, angleInRad , positionX, positionY, axisX, axisY , width, height) {
 	context.save(); 
 	context.translate( positionX, positionY );
@@ -355,12 +355,10 @@ function rotateAndPaintImage ( context, image, angleInRad , positionX, positionY
 function render() {
 	var bodies = Composite.allBodies(engine.world);
 	window.requestAnimationFrame(render);
-	context.fillStyle = '#f00';
+	context.fillStyle = '#11001d';
 	context.fillRect(0, 0, canvas.width, canvas.height);
 	context.fillStyle = '#fff';
-	context.fillRect(10, 10, canvas.width-20, canvas.height-20);
-	context.fillStyle = '#ccc';
-	context.font = "12px Arial";
+	context.font = "24px Arial";
 	context.fillText("Hits: " + count, 10, 50);
 	context.save(); 
 	context.translate(-transformBounds.min.x/transformScale.x, -transformBounds.min.y/transformScale.y);
@@ -395,19 +393,13 @@ function render() {
 		context.lineTo(vertices[0].x, vertices[0].y);
 	}
 	context.lineWidth = 1;
-	context.strokeStyle = '#ff0000';
+	context.strokeStyle = '#fff';
 	context.stroke();
 	context.restore();
 	for (var i = 0; i < ongoingTouches.length; i++) {
 		context.fillStyle = '#00ff00';
 		context.fillRect(ongoingTouches[i].current.x, ongoingTouches[i].current.y, 10, 10);
 	}
-	//
-	
-	var thisLoop = new Date;
-    var fps = Math.floor(1000 / (thisLoop - lastLoop));
-    lastLoop = thisLoop;
-	context.fillStyle = '#ccc';
-	context.font = "12px Arial";
-	context.fillText("fps: " + fps, 100, 50);
+	// --- draw fps -- //
+	Fps.draw(context,canvas.width - 100, 50);
 };

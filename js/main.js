@@ -1,17 +1,17 @@
 var Engine = Matter.Engine,
-	World = Matter.World,
-	Bodies = Matter.Bodies,
-	Body = Matter.Body,
-	Composite = Matter.Composite,
-	Events = Matter.Events,
-	MouseConstraint = Matter.MouseConstraint,
-	Bounds = Matter.Bounds,
-	Mouse = Matter.Mouse;
+World = Matter.World,
+Bodies = Matter.Bodies,
+Body = Matter.Body,
+Composite = Matter.Composite,
+Events = Matter.Events,
+MouseConstraint = Matter.MouseConstraint,
+Bounds = Matter.Bounds,
+Mouse = Matter.Mouse;
 //
 var defaultCategory = 0x0001,
-	redCategory = 0x0002,
-	blueCategory = 0x0003,
-	purpleCategory = 0x0004;
+redCategory = 0x0002,
+blueCategory = 0x0003,
+purpleCategory = 0x0004;
 //
 
 var bodies = [];
@@ -22,9 +22,26 @@ var context;
 var engine;
 var mouseConstraint;
 //
-var boxC;
+var JumpPad;
 var REZ_MULTIPLIER = 2;
-var zooming=false;
+var zooming = false;
+var ongoingTouches = new Array();
+//
+var posX = 0;
+var posY = 0;
+var moving = false;
+var currentX = 0;
+var currentY = 0;
+var angInit = 0;
+var currentAngle = 0;
+var dir = 1;
+var offset = {
+	x: 0,
+	y: 0
+};
+var zoomLevelFinal = 1, zoomLevel = 1;
+var transformBounds = {min:{x:0,y:0},prev:{x:0,y:0}};
+var transformScale = {x:1,y:1};
 //
 function init() {
 	console.log('init');
@@ -46,29 +63,17 @@ function init() {
 	bindEvents();
 	Engine.run(engine);
 	render();
-	canvas.addEventListener("touchstart", handleStart, false);
-	canvas.addEventListener("touchend", handleEnd, false);
-	canvas.addEventListener("touchcancel", handleCancel, false);
+	canvas.addEventListener("touchstart", function(e) {e.preventDefault();}, false);
+	canvas.addEventListener("touchend", handleTouchEnd, false);
+	canvas.addEventListener("touchcancel", handleTouchEnd, false);
 	canvas.addEventListener("touchmove", handleMove, false);
 }
-var ongoingTouches = new Array();
-function handleCancel(event) {
-	event.preventDefault();
-	zooming=false;
-	ongoingTouches.length = 0;
-	zoomLevelFinal = zoomLevel;
-	handleMoveStarted=false;
-	transformBounds.prev.x = transformBounds.min.x;
-	transformBounds.prev.y = transformBounds.min.y;
-	moving = false;
-	console.log('cancel');
-}
-function handleEnd(event) {
+function handleTouchEnd(event) {
 	event.preventDefault();
 	zooming = false;
 	ongoingTouches.length = 0;
 	zoomLevelFinal = zoomLevel;
-	handleMoveStarted=false;
+	handleMoveStarted = false;
 	transformBounds.prev.x = transformBounds.min.x;
 	transformBounds.prev.y = transformBounds.min.y;
 	console.log('end');
@@ -78,7 +83,7 @@ function handleMove(event) {
 	if(moving){
 		return;
 	}
-	handleMoveStarted=true;
+	handleMoveStarted = true;
 	//always fired before startdrag
 	console.log("handleMove",moving);
 	event.preventDefault();
@@ -96,10 +101,6 @@ function handleMove(event) {
 			zooming = true;
 		}
 	},100);
-}
-
-function handleStart(event) {
-	event.preventDefault();
 }
 function generateDrops() {
 	for (var i = 0; i < 100; i++) {
@@ -120,7 +121,7 @@ function generateDrops() {
 }
 
 function generateItems() {
-	boxC = Bodies.rectangle(400, 350, 150, 40, {
+	JumpPad = Bodies.rectangle(400, 350, 150, 40, {
 		angle: Math.PI * 0.05,
 		isStatic: true,
 		collisionFilter: {
@@ -128,7 +129,7 @@ function generateItems() {
 			category: blueCategory
 		}
 	});
-	boxC.label = 'pad';
+	JumpPad.label = 'pad';
 	var partA = Bodies.rectangle(200 - 25, 400 + 50, 50, 10, {
 		angle: Math.PI * 0.6, //90deg
 		isStatic: true,
@@ -154,31 +155,16 @@ function generateItems() {
 	var ground = Bodies.rectangle(400, 610, 810, 60, {
 		isStatic: true
 	});
-	World.add(engine.world, [partA, partB, partC, boxC, ground]);
+	World.add(engine.world, [partA, partB, partC, JumpPad, ground]);
 }
 
-// run the renderer
-var posX = 0;
-var posY = 0;
-var moving = false;
-var currentX = 0;
-var currentY = 0;
-var angInit = 0;
-var currentAngle = 0;
-var dir = 1;
-var offset = {
-	x: 0,
-	y: 0
-};
-var zoomLevelFinal = 1,zoomLevel = 1;
-var transformBounds = {min:{x:0,y:0},prev:{x:0,y:0}};
-//var transformBounds = {min:{x:-100,y:-100},max:{}};
-var transformScale = {x:1,y:1};
 function bindEvents() {
-	Events.on(mouseConstraint, "mousemove", function(e) {
+	function setDragPosition(e){
 		posX = e.mouse.position.x;
 		posY = e.mouse.position.y;
-	});
+	}
+	Events.on(mouseConstraint, "mousedown", setDragPosition);
+	Events.on(mouseConstraint, "mousemove", setDragPosition);
 
 	Events.on(mouseConstraint, "startdrag", function(e) {
 		console.log("startdrag",moving,zooming);
@@ -186,11 +172,11 @@ function bindEvents() {
 			return;
 		}
 		dir *= -1;
-		angInit = Math.atan((boxC.position.y - e.mouse.position.y) / (boxC.position.x - e.mouse.position.x));
-		currentAngle = boxC.angle;
+		angInit = Math.atan((JumpPad.position.y - e.mouse.position.y) / (JumpPad.position.x - e.mouse.position.x));
+		currentAngle = JumpPad.angle;
 		moving = true;
-		offset.y = boxC.position.y - e.mouse.position.y;
-		offset.x = boxC.position.x - e.mouse.position.x;
+		offset.y = JumpPad.position.y - e.mouse.position.y;
+		offset.x = JumpPad.position.x - e.mouse.position.x;
 	});
 
 	Events.on(mouseConstraint, "enddrag", function(e) {
@@ -198,7 +184,7 @@ function bindEvents() {
 	});
 	Events.on(engine, 'collisionStart', function(e) {
 		var i, pair,
-			length = e.pairs.length;
+		length = e.pairs.length;
 		for (i = 0; i < length; i++) {
 			pair = e.pairs[i];
 			if (pair.bodyB.label === 'drop'){
@@ -214,7 +200,7 @@ function bindEvents() {
 	});
 	Events.on(engine, 'collisionEnd', function(e) {
 		var i, pair,
-			length = e.pairs.length;
+		length = e.pairs.length;
 		for (i = 0; i < length; i++) {
 			pair = e.pairs[i];
 			if (pair.bodyB.label === 'drop'){
@@ -230,45 +216,12 @@ function bindEvents() {
 		engine.world.bounds.max.x = 2000;
 		engine.world.bounds.max.y = 2000;
 		*/
-		//Mouse.setOffset(mouseConstraint.mouse, {x:100,y:100});
-		var bounds = {
-			min: {
-				x: -100,
-				y: -100
-			},
-			max: {
-				x: 400,
-				y: 400
-			}
-		};
-		var translate = {
-			x: -100,
-			y: -100
-		};
-		//Bounds.translate(bounds, translate);
-		var boundsScale = {
-			x: 5,
-			y: 5
-		};
-		var bounds = {
-			min: {
-				x: -500,
-				y: -500
-			},
-			max: {
-				x: 400,
-				y: 400
-			}
-		};
-		//Mouse.setScale(mouseConstraint.mouse, boundsScale);
-		//Mouse.setOffset(mouseConstraint.mouse, bounds.min);
 		if(ongoingTouches && ongoingTouches.length>=2){
 			var a = ongoingTouches[0];
 			var b = ongoingTouches[1];
 			var distStart = Math.sqrt(Math.pow(a.current.x-b.current.x,2)+Math.pow(a.current.y-b.current.y,2));
 			var distCurrent = Math.sqrt(Math.pow(a.start.x-b.start.x,2)+Math.pow(a.start.y-b.start.y,2));
 			var scale = (distStart / distCurrent);
-			//zoomLevel=0.5
 			if(Math.abs(scale*zoomLevelFinal - zoomLevel) > 0.01){
 				zoomLevel = scale*zoomLevelFinal;
 				transformScale.x=transformScale.y=1/zoomLevel;
@@ -295,13 +248,11 @@ function bindEvents() {
 	});
 	Events.on(engine, 'beforeUpdate', function(event) {
 		if (moving) {
-			var ang = Math.atan((boxC.position.y - posY) / (boxC.position.x - posX));
-			//console.log(conv(ang),conv(Math.PI*2-ang),conv(angInit),conv(currentAngle));
-			//Body.setAngle(boxC, currentAngle);
 			if (dir > 0) {
-				Body.setAngle(boxC, ang - angInit + currentAngle - Math.PI);
+				var ang = Math.atan((JumpPad.position.y - posY) / (JumpPad.position.x - posX));
+				Body.setAngle(JumpPad, ang - angInit + currentAngle - Math.PI);
 			} else {
-				Body.setPosition(boxC, {
+				Body.setPosition(JumpPad, {
 					x: posX + offset.x,
 					y: posY + offset.y
 				});
@@ -338,20 +289,6 @@ function reposition(body) {
 	body.life = 0;
 }
 
-function conv(rad) {
-	return rad * (180 / Math.PI);
-}
-//
-
-function rotateAndPaintImage ( context, image, angleInRad , positionX, positionY, axisX, axisY , width, height) {
-	context.save(); 
-	context.translate( positionX, positionY );
-	context.rotate( angleInRad );
-	context.drawImage( image, -axisX, -axisY, width, height );
-	context.restore();
-  //context.rotate( -angleInRad );
-  //context.translate( -positionX, -positionY );
-}
 function render() {
 	var bodies = Composite.allBodies(engine.world);
 	window.requestAnimationFrame(render);
@@ -366,7 +303,7 @@ function render() {
 	context.beginPath();
 	for (var i = 0; i < bodies.length; i += 1) {
 		if(bodies[i].label=='pad'){
-			rotateAndPaintImage (context,Resources.img,bodies[i].angle,bodies[i].position.x, bodies[i].position.y,75,20,150,40);
+			Utils.rotateAndPaintImage (context,Resources.img,bodies[i].angle,bodies[i].position.x, bodies[i].position.y,75,20,150,40);
 			continue;
 		}
 		if(bodies[i].label == 'drop'){
@@ -382,7 +319,7 @@ function render() {
 					ang = Math.PI+ang;
 				}
 			}
-			rotateAndPaintImage (context,drp,-Math.PI/2+ang,bodies[i].position.x, bodies[i].position.y,20,20,40,40);
+			Utils.rotateAndPaintImage(context,drp,-Math.PI/2+ang,bodies[i].position.x, bodies[i].position.y,20,20,40,40);
 			continue;
 		}
 		var vertices = bodies[i].vertices;
@@ -392,10 +329,14 @@ function render() {
 		}
 		context.lineTo(vertices[0].x, vertices[0].y);
 	}
+	//
 	context.lineWidth = 1;
 	context.strokeStyle = '#fff';
 	context.stroke();
 	context.restore();
+	/* circle */
+	Utils.rotateAndPaintImage(context, Resources.circle, JumpPad.angle, (JumpPad.position.x-transformBounds.min.x)/transformScale.x, (JumpPad.position.y-transformBounds.min.y)/transformScale.y, 300, 300, 600, 600);
+	//
 	for (var i = 0; i < ongoingTouches.length; i++) {
 		context.fillStyle = '#00ff00';
 		context.fillRect(ongoingTouches[i].current.x, ongoingTouches[i].current.y, 10, 10);

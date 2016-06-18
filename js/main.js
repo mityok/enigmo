@@ -10,8 +10,8 @@ Mouse = Matter.Mouse;
 //
 var defaultCategory = 0x0001,
 redCategory = 0x0002,
-blueCategory = 0x0003,
-purpleCategory = 0x0004;
+blueCategory = 0x0004,
+purpleCategory = 0x0008;
 //
 
 var bodies = [];
@@ -23,6 +23,7 @@ var engine;
 var mouseConstraint;
 //
 var JumpPad;
+var items = [];
 var REZ_MULTIPLIER = 2;
 var zooming = false;
 var ongoingTouches = new Array();
@@ -30,21 +31,18 @@ var ongoingTouches = new Array();
 var posX = 0;
 var posY = 0;
 var moving = false;
-var currentX = 0;
-var currentY = 0;
-var angInit = 0;
-var currentAngle = 0;
-var dir = 1;
+
+var rotationMode = false;
 var offset = {
 	x: 0,
 	y: 0
 };
+var selectionCircleSize = {min:180, max:240};
 var zoomLevelFinal = 1, zoomLevel = 1;
 var transformBounds = {min:{x:0,y:0},prev:{x:0,y:0}};
 var transformScale = {x:1,y:1};
 //
 function init() {
-	console.log('init');
 	canvas = document.getElementById('cvs');
 	context = canvas.getContext('2d');
 	canvas.width = 1532/2;
@@ -54,8 +52,8 @@ function init() {
 		mouse: Matter.Mouse.create(canvas)
 	});
 	mouseConstraint.collisionFilter = {
-		category: redCategory | blueCategory,
-		mask: defaultCategory
+		category: blueCategory,
+		mask: blueCategory
 	};
 	World.add(engine.world, mouseConstraint);
 	generateDrops();
@@ -63,10 +61,27 @@ function init() {
 	bindEvents();
 	Engine.run(engine);
 	render();
-	canvas.addEventListener("touchstart", function(e) {e.preventDefault();}, false);
+	canvas.addEventListener("touchstart", handleTouchStart, false);
 	canvas.addEventListener("touchend", handleTouchEnd, false);
 	canvas.addEventListener("touchcancel", handleTouchEnd, false);
-	canvas.addEventListener("touchmove", handleMove, false);
+	canvas.addEventListener("touchmove", handleTouchMove, false);
+}
+function handleTouchStart(event) {
+	rotationMode = false;
+	//calculate radius
+	if(selectedItem){
+		console.log(selectedItem.position);
+		var distance = Math.sqrt(Math.pow(event.changedTouches[0].pageX*REZ_MULTIPLIER-(selectedItem.position.x-transformBounds.min.x)/transformScale.x,2) + Math.pow(event.changedTouches[0].pageY*REZ_MULTIPLIER-(selectedItem.position.y-transformBounds.min.y)/transformScale.y,2));
+		if(distance > selectionCircleSize.min && distance < selectionCircleSize.max){
+			rotationMode = true;
+			selectedItem.angInit = Math.atan((event.changedTouches[0].pageY*REZ_MULTIPLIER-(selectedItem.position.y-transformBounds.min.y)/transformScale.y) / (event.changedTouches[0].pageX*REZ_MULTIPLIER-(selectedItem.position.x-transformBounds.min.x)/transformScale.x));
+			selectedItem.currentAngle = selectedItem.angle;
+			moving = true;
+		}else{
+			selectedItem = null;
+		}
+	}
+	event.preventDefault();
 }
 function handleTouchEnd(event) {
 	event.preventDefault();
@@ -79,7 +94,7 @@ function handleTouchEnd(event) {
 	console.log('end');
 	moving = false;
 }
-function handleMove(event) {
+function handleTouchMove(event) {
 	if(moving){
 		return;
 	}
@@ -94,7 +109,7 @@ function handleMove(event) {
 		}
 		ongoingTouches[i].current = {x:touches[i].pageX*REZ_MULTIPLIER, y:touches[i].pageY*REZ_MULTIPLIER};
 	}
-	
+			
 	setTimeout(function(){
 		console.log("handleMove timeout, moving:",moving,'zooming:',zooming);
 		if(!moving && handleMoveStarted){
@@ -108,7 +123,7 @@ function generateDrops() {
 			var circ = Bodies.circle(400, 200, 5, {
 				restitution: 0.9,
 				collisionFilter: {
-					mask: defaultCategory | purpleCategory,
+					mask: defaultCategory | purpleCategory | blueCategory,
 					category: redCategory
 				}
 			});
@@ -121,15 +136,25 @@ function generateDrops() {
 }
 
 function generateItems() {
-	JumpPad = Bodies.rectangle(400, 350, 150, 40, {
+	var pad = Bodies.rectangle(400, 350, 150, 40, {
 		angle: Math.PI * 0.05,
 		isStatic: true,
 		collisionFilter: {
-			mask: defaultCategory | redCategory,
+
 			category: blueCategory
 		}
 	});
-	JumpPad.label = 'pad';
+	pad.label = 'pad';
+	var pad2 = Bodies.rectangle(200, 350, 150, 40, {
+		angle: Math.PI * 0.05,
+		isStatic: true,
+		collisionFilter: {
+
+			category: blueCategory
+		}
+	});
+	pad2.label = 'pad';
+	items.push(pad2);
 	var partA = Bodies.rectangle(200 - 25, 400 + 50, 50, 10, {
 		angle: Math.PI * 0.6, //90deg
 		isStatic: true,
@@ -153,11 +178,14 @@ function generateItems() {
 		}
 	});
 	var ground = Bodies.rectangle(400, 610, 810, 60, {
-		isStatic: true
+		isStatic: true,
+		collisionFilter: {
+			category: defaultCategory
+		}
 	});
-	World.add(engine.world, [partA, partB, partC, JumpPad, ground]);
+	World.add(engine.world, [partA, partB, partC, pad,pad2, ground]);
 }
-
+var selectedItem = null;
 function bindEvents() {
 	function setDragPosition(e){
 		posX = e.mouse.position.x;
@@ -167,16 +195,13 @@ function bindEvents() {
 	Events.on(mouseConstraint, "mousemove", setDragPosition);
 
 	Events.on(mouseConstraint, "startdrag", function(e) {
-		console.log("startdrag",moving,zooming);
+		console.log("startdrag", moving, zooming, e.body.label);
 		if(zooming){
 			return;
 		}
-		dir *= -1;
-		angInit = Math.atan((JumpPad.position.y - e.mouse.position.y) / (JumpPad.position.x - e.mouse.position.x));
-		currentAngle = JumpPad.angle;
+		selectedItem = e.body;
 		moving = true;
-		offset.y = JumpPad.position.y - e.mouse.position.y;
-		offset.x = JumpPad.position.x - e.mouse.position.x;
+		selectedItem.offset = {y : selectedItem.position.y - e.mouse.position.y,x: selectedItem.position.x - e.mouse.position.x};
 	});
 
 	Events.on(mouseConstraint, "enddrag", function(e) {
@@ -191,7 +216,7 @@ function bindEvents() {
 				pair.bodyB.collision = true;
 			}
 			if (pair.bodyB.label === 'drop' && pair.bodyA.label === 'pad') {
-				pair.bodyB.acceleration = 0.002;
+				pair.bodyB.acceleration = true;
 			} else if (pair.bodyB.label == 'drop' && pair.bodyA.label == 'cup') {
 				reposition(pair.bodyB);
 				count++;
@@ -238,9 +263,12 @@ function bindEvents() {
 		for (var i = 0; i < bodies.length; i++) {
 			if (bodies[i].acceleration) {
 				var ang = Math.atan2((bodies[i].position.y - bodies[i].positionPrev.y), (bodies[i].position.x - bodies[i].positionPrev.x));
+				var force = Math.sqrt(Math.pow(bodies[i].position.y - bodies[i].positionPrev.y,2) + Math.pow(bodies[i].position.x - bodies[i].positionPrev.x,2)) * 0.0003;
+				//should be relative to drop velocity
+				//0.002;
 				Body.applyForce(bodies[i], bodies[i].position, {
-					x: Math.cos(ang) * bodies[i].acceleration,
-					y: Math.sin(ang) * bodies[i].acceleration
+					x: Math.cos(ang) * force,
+					y: Math.sin(ang) * force
 				});
 				bodies[i].acceleration = null;
 			}
@@ -248,15 +276,16 @@ function bindEvents() {
 	});
 	Events.on(engine, 'beforeUpdate', function(event) {
 		if (moving) {
-			if (dir > 0) {
-				var ang = Math.atan((JumpPad.position.y - posY) / (JumpPad.position.x - posX));
-				Body.setAngle(JumpPad, ang - angInit + currentAngle - Math.PI);
+			if (rotationMode) {
+				var ang = Math.atan((selectedItem.position.y - posY) / (selectedItem.position.x - posX));
+				Body.setAngle(selectedItem, ang - selectedItem.angInit + selectedItem.currentAngle - Math.PI);
 			} else {
-				Body.setPosition(JumpPad, {
-					x: posX + offset.x,
-					y: posY + offset.y
+				Body.setPosition(selectedItem, {
+					x: posX + selectedItem.offset.x,
+					y: posY + selectedItem.offset.y
 				});
 			}
+			
 		}
 		for (var i = 0; i < bodies.length; i++) {
 			if (bodies[i].position.x < -500 || bodies[i].position.y > 5000 || bodies[i].position.x > 5000) {
@@ -335,7 +364,9 @@ function render() {
 	context.stroke();
 	context.restore();
 	/* circle */
-	Utils.rotateAndPaintImage(context, Resources.circle, JumpPad.angle, (JumpPad.position.x-transformBounds.min.x)/transformScale.x, (JumpPad.position.y-transformBounds.min.y)/transformScale.y, 300, 300, 600, 600);
+	if(selectedItem){
+		Utils.rotateAndPaintImage(context, Resources.circle, selectedItem.angle, (selectedItem.position.x-transformBounds.min.x)/transformScale.x, (selectedItem.position.y-transformBounds.min.y)/transformScale.y, 300, 300, 600, 600);
+	}
 	//
 	for (var i = 0; i < ongoingTouches.length; i++) {
 		context.fillStyle = '#00ff00';

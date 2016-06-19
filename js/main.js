@@ -80,8 +80,8 @@ function handleTouchStart(event) {
 		var distance = Math.sqrt(Math.pow(event.changedTouches[0].pageX*REZ_MULTIPLIER-(selectedItem.position.x-transformBounds.min.x)/transformScale.x,2) + Math.pow(event.changedTouches[0].pageY*REZ_MULTIPLIER-(selectedItem.position.y-transformBounds.min.y)/transformScale.y,2));
 		if(distance > selectionCircleSize.min && distance < selectionCircleSize.max){
 			rotationMode = true;
-			selectedItem.angInit = Math.atan((event.changedTouches[0].pageY*REZ_MULTIPLIER-(selectedItem.position.y-transformBounds.min.y)/transformScale.y) / (event.changedTouches[0].pageX*REZ_MULTIPLIER-(selectedItem.position.x-transformBounds.min.x)/transformScale.x));
-			selectedItem.currentAngle = selectedItem.angle;
+			selectedItem.angInit = Math.atan2((event.changedTouches[0].pageY*REZ_MULTIPLIER-(selectedItem.position.y-transformBounds.min.y)/transformScale.y) , (event.changedTouches[0].pageX*REZ_MULTIPLIER-(selectedItem.position.x-transformBounds.min.x)/transformScale.x));
+			selectedItem.currentAngle = selectedItem.angle % (Math.PI *2);
 			moving = true;
 		}else{
 			selectedItem = null;
@@ -286,8 +286,10 @@ return;
 	Events.on(engine, 'beforeUpdate', function(event) {
 		if (moving) {
 			if (rotationMode) {
-				var ang = Math.atan((selectedItem.position.y - posY) / (selectedItem.position.x - posX));
-				Body.setAngle(selectedItem, ang - selectedItem.angInit + selectedItem.currentAngle - Math.PI);
+				var ang = Math.atan2((selectedItem.position.y - posY) , (selectedItem.position.x - posX));
+				var calculatedAngle = ang - selectedItem.angInit + selectedItem.currentAngle + Math.PI;
+				calculatedAngle = calculatedAngle % (Math.PI*2);
+				Body.setAngle(selectedItem, calculatedAngle);
 			} else {
 				Body.setPosition(selectedItem, {
 					x: posX + selectedItem.offset.x,

@@ -13,7 +13,7 @@ redCategory = 0x0002,
 blueCategory = 0x0004,
 purpleCategory = 0x0008;
 //
-
+var MAX_DROPS = 500;
 var bodies = [];
 
 var count = 0;
@@ -130,7 +130,7 @@ function handleTouchMove(event) {
 	},100);
 }
 function generateDrops() {
-	for (var i = 0; i < 100; i++) {
+	for (var i = 0; i < MAX_DROPS; i++) {
 		setTimeout(function() {
 			var circ = Bodies.circle(400, 200, 5, {
 				restitution: 0.9
@@ -149,6 +149,7 @@ function generateDrops() {
                 if(body.isSleeping){
 					reposition(body);
 				}
+				
 			});
 			World.add(engine.world, circ);
 		}, i * 40);

@@ -42,6 +42,8 @@ var zoomLevelFinal = 1, zoomLevel = 1;
 var transformBounds = {min:{x:0,y:0},prev:{x:0,y:0}};
 var transformScale = {x:1,y:1};
 //
+var stats = new Stats();
+//
 function init() {
 	canvas = document.getElementById('cvs');
 	context = canvas.getContext('2d');
@@ -65,6 +67,10 @@ function init() {
 	canvas.addEventListener("touchend", handleTouchEnd, false);
 	canvas.addEventListener("touchcancel", handleTouchEnd, false);
 	canvas.addEventListener("touchmove", handleTouchMove, false);
+	//
+	
+	stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
+	document.body.appendChild( stats.dom );
 }
 function handleTouchStart(event) {
 	rotationMode = false;
@@ -322,8 +328,8 @@ function reposition(body) {
 }
 
 function render() {
+	stats.begin();
 	var bodies = Composite.allBodies(engine.world);
-	window.requestAnimationFrame(render);
 	context.fillStyle = '#11001d';
 	context.fillRect(0, 0, canvas.width, canvas.height);
 	context.fillStyle = '#fff';
@@ -375,6 +381,9 @@ function render() {
 		context.fillStyle = '#00ff00';
 		context.fillRect(ongoingTouches[i].current.x, ongoingTouches[i].current.y, 10, 10);
 	}
+	stats.end();
 	// --- draw fps -- //
 	Fps.draw(context,canvas.width - 100, 50);
+	//
+	window.requestAnimationFrame(render);
 };

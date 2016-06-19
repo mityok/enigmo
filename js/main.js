@@ -199,6 +199,9 @@ function bindEvents() {
 		if(zooming){
 			return;
 		}
+		if(moving && rotationMode){
+return;
+		}
 		selectedItem = e.body;
 		moving = true;
 		selectedItem.offset = {y : selectedItem.position.y - e.mouse.position.y,x: selectedItem.position.x - e.mouse.position.x};
@@ -332,7 +335,7 @@ function render() {
 	context.beginPath();
 	for (var i = 0; i < bodies.length; i += 1) {
 		if(bodies[i].label=='pad'){
-			Utils.rotateAndPaintImage (context,Resources.img,bodies[i].angle,bodies[i].position.x, bodies[i].position.y,75,20,150,40);
+			Utils.rotateAndPaintImage (context,Resources.pad,bodies[i].angle,bodies[i].position.x, bodies[i].position.y,75,20,150,40);
 			continue;
 		}
 		if(bodies[i].label == 'drop'){

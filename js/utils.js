@@ -7,9 +7,11 @@ var Utils = (function(){
 			return;
 		}
 		ctx.save(); 
-		ctx.translate( positionX, positionY );
-		ctx.rotate( angleInRad );
-		ctx.drawImage( image, -axisX, -axisY, width, height );
+		ctx.translate( ~~positionX, ~~positionY );
+		if(Math.abs(angleInRad)>0.01){
+			ctx.rotate( angleInRad );
+		}
+		ctx.drawImage( image, ~~(-axisX), ~~(-axisY), ~~width, ~~height );
 		ctx.restore();
 	}
 	return {

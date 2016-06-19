@@ -43,6 +43,9 @@ var transformBounds = {min:{x:0,y:0},prev:{x:0,y:0}};
 var transformScale = {x:1,y:1};
 //
 var stats = new Stats();
+stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
+var statsCanvas =null;
+	
 //
 function init() {
 	canvas = document.getElementById('cvs');
@@ -62,15 +65,18 @@ function init() {
 	generateItems();
 	bindEvents();
 	Engine.run(engine);
+	engine.enableSleeping = true;
 	render();
+	engine.world.bounds.min.x = -300;
+    engine.world.bounds.min.y = -300;
+    engine.world.bounds.max.x = 1100;
+    engine.world.bounds.max.y = 900;
 	canvas.addEventListener("touchstart", handleTouchStart, false);
 	canvas.addEventListener("touchend", handleTouchEnd, false);
 	canvas.addEventListener("touchcancel", handleTouchEnd, false);
 	canvas.addEventListener("touchmove", handleTouchMove, false);
 	//
-	
-	stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
-	document.body.appendChild( stats.dom );
+	statsCanvas = stats.dom.children[0];
 }
 function handleTouchStart(event) {
 	rotationMode = false;
@@ -127,7 +133,9 @@ function generateDrops() {
 	for (var i = 0; i < 100; i++) {
 		setTimeout(function() {
 			var circ = Bodies.circle(400, 200, 5, {
-				restitution: 0.9,
+				restitution: 0.9
+				/*,collisionFilter: {group:-1}*/ 
+				,
 				collisionFilter: {
 					mask: defaultCategory | purpleCategory | blueCategory,
 					category: redCategory
@@ -137,13 +145,13 @@ function generateDrops() {
 			circ.label = 'drop';
 			bodies.push(circ);
 			World.add(engine.world, circ);
-		}, i * 100);
+		}, i * 40);
 	}
 }
 
 function generateItems() {
 	var pad = Bodies.rectangle(400, 350, 150, 40, {
-		angle: Math.PI * 0.05,
+		angle: Math.PI * 0.02,
 		isStatic: true,
 		collisionFilter: {
 
@@ -152,7 +160,7 @@ function generateItems() {
 	});
 	pad.label = 'pad';
 	var pad2 = Bodies.rectangle(200, 350, 150, 40, {
-		angle: Math.PI * 0.05,
+		angle: Math.PI * 0.02,
 		isStatic: true,
 		collisionFilter: {
 
@@ -206,7 +214,7 @@ function bindEvents() {
 			return;
 		}
 		if(moving && rotationMode){
-return;
+			return;
 		}
 		selectedItem = e.body;
 		moving = true;
@@ -244,12 +252,6 @@ return;
 	});
 
 	Events.on(engine, 'beforeTick', function(event) {
-		/*
-		engine.world.bounds.min.x = -300;
-		engine.world.bounds.min.y = -300;
-		engine.world.bounds.max.x = 2000;
-		engine.world.bounds.max.y = 2000;
-		*/
 		if(ongoingTouches && ongoingTouches.length>=2){
 			var a = ongoingTouches[0];
 			var b = ongoingTouches[1];
@@ -290,6 +292,7 @@ return;
 				var calculatedAngle = ang - selectedItem.angInit + selectedItem.currentAngle + Math.PI;
 				calculatedAngle = calculatedAngle % (Math.PI*2);
 				Body.setAngle(selectedItem, calculatedAngle);
+				//console.log('beforeUpdate',Utils.radiansToDegrees(ang),Utils.radiansToDegrees(calculatedAngle));
 			} else {
 				Body.setPosition(selectedItem, {
 					x: posX + selectedItem.offset.x,
@@ -301,15 +304,15 @@ return;
 		for (var i = 0; i < bodies.length; i++) {
 			if (bodies[i].position.x < -500 || bodies[i].position.y > 5000 || bodies[i].position.x > 5000) {
 				reposition(bodies[i]);
-				//continue;
+				continue;
 			}
 			if (bodies[0].speed < 0.3 && bodies[0].angularSpeed < 0.1) {
 				bodies[i].life++;
-				//continue;
+				continue;
 			}
 			if (bodies[i].life > 100) {
 				reposition(bodies[i]);
-				//continue;
+				continue;
 			}
 
 		}
@@ -362,6 +365,7 @@ function render() {
 			Utils.rotateAndPaintImage(context,drp,-Math.PI/2+ang,bodies[i].position.x, bodies[i].position.y,20,20,40,40);
 			continue;
 		}
+		
 		var vertices = bodies[i].vertices;
 		context.moveTo(vertices[0].x, vertices[0].y);
 		for (var j = 1; j < vertices.length; j += 1) {
@@ -378,10 +382,16 @@ function render() {
 	if(selectedItem){
 		Utils.rotateAndPaintImage(context, Resources.circle, selectedItem.angle, (selectedItem.position.x-transformBounds.min.x)/transformScale.x, (selectedItem.position.y-transformBounds.min.y)/transformScale.y, 300, 300, 600, 600);
 	}
-	//
+	/*
 	for (var i = 0; i < ongoingTouches.length; i++) {
 		context.fillStyle = '#00ff00';
 		context.fillRect(ongoingTouches[i].current.x, ongoingTouches[i].current.y, 10, 10);
+	}
+	*/
+	//call its drawImage() function passing it the source canvas directly
+	try{
+		context.drawImage(statsCanvas, 200, 0);
+	}catch(e){
 	}
 	stats.end();
 	// --- draw fps -- //

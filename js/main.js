@@ -144,6 +144,12 @@ function generateDrops() {
 			circ.life = 0;
 			circ.label = 'drop';
 			bodies.push(circ);
+			Events.on(circ, 'sleepStart', function(event) {
+				var body = this;
+                if(body.isSleeping){
+					reposition(body);
+				}
+			});
 			World.add(engine.world, circ);
 		}, i * 40);
 	}
@@ -306,9 +312,12 @@ function bindEvents() {
 				reposition(bodies[i]);
 				continue;
 			}
-			if (bodies[0].speed < 0.3 && bodies[0].angularSpeed < 0.1) {
+			if (bodies[i].speed < 0.3 && bodies[i].angularSpeed < 0.1) {
 				bodies[i].life++;
 				continue;
+			}
+			if(bodies[i].isSleeping){
+				console.log('zzz');
 			}
 			if (bodies[i].life > 100) {
 				reposition(bodies[i]);
@@ -329,6 +338,7 @@ function reposition(body) {
 		y: 0
 	});
 	Body.setAngularVelocity(body, 0.0);
+	Matter.Sleeping.set(body, false)
 	body.life = 0;
 }
 

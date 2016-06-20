@@ -239,8 +239,10 @@ function bindEvents() {
 			if (pair.bodyB.label === 'drop'){
 				pair.bodyB.collision = true;
 			}
-			if (pair.bodyB.label === 'drop' && pair.bodyA.label === 'pad') {
-				pair.bodyB.acceleration = true;
+			if (pair.bodyB.label === 'drop' && pair.bodyA.label === 'pad') {			
+				if(pair.bodyB.force.x>0 || pair.bodyB.force.y>0){
+					pair.bodyB.acceleration= {x: pair.bodyB.force.x,y:pair.bodyB.force.y};
+				}	
 			} else if (pair.bodyB.label == 'drop' && pair.bodyA.label == 'cup') {
 				reposition(pair.bodyB);
 				count++;
@@ -279,9 +281,9 @@ function bindEvents() {
 	});
 	Events.on(engine, 'afterUpdate', function(event) {
 		for (var i = 0; i < bodies.length; i++) {
-			if (bodies[i].acceleration) {
-				var ang = Math.atan2((bodies[i].position.y - bodies[i].positionPrev.y), (bodies[i].position.x - bodies[i].positionPrev.x));
-				var force = Math.sqrt(Math.pow(bodies[i].position.y - bodies[i].positionPrev.y,2) + Math.pow(bodies[i].position.x - bodies[i].positionPrev.x,2)) * 0.0003;
+			if (bodies[i].acceleration) {			
+				var ang = -Math.atan2(bodies[i].acceleration.y , bodies[i].acceleration.x );
+				var force = Math.sqrt(bodies[i].acceleration.y*bodies[i].acceleration.y + bodies[i].acceleration.x*bodies[i].acceleration.x) * 20;
 				//should be relative to drop velocity
 				//0.002;
 				Body.applyForce(bodies[i], bodies[i].position, {

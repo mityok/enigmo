@@ -13,7 +13,7 @@ redCategory = 0x0002,
 blueCategory = 0x0004,
 purpleCategory = 0x0008;
 //
-var MAX_DROPS = 500;
+var MAX_DROPS = 100;
 var bodies = [];
 
 var count = 0;
@@ -24,6 +24,7 @@ var mouseConstraint;
 //
 var JumpPad;
 var items = [];
+var sponges = [];
 var REZ_MULTIPLIER = 2;
 var zooming = false;
 var ongoingTouches = new Array();
@@ -133,9 +134,7 @@ function generateDrops() {
 	for (var i = 0; i < MAX_DROPS; i++) {
 		setTimeout(function() {
 			var circ = Bodies.circle(400, 200, 5, {
-				restitution: 0.9
-				/*,collisionFilter: {group:-1}*/ 
-				,
+				restitution: 0.1,
 				collisionFilter: {
 					mask: defaultCategory | purpleCategory | blueCategory,
 					category: redCategory
@@ -146,10 +145,9 @@ function generateDrops() {
 			bodies.push(circ);
 			Events.on(circ, 'sleepStart', function(event) {
 				var body = this;
-                if(body.isSleeping){
+                if(!body.soaked && body.isSleeping){
 					reposition(body);
 				}
-				
 			});
 			World.add(engine.world, circ);
 		}, i * 40);
@@ -157,20 +155,40 @@ function generateDrops() {
 }
 
 function generateItems() {
-	var pad = Bodies.rectangle(400, 350, 150, 40, {
+	var partA1 = Bodies.rectangle(600, 200, 120, 50),
+	partB1 = Bodies.circle(660, 200, 20),
+	comp = Body.create({
+		parts: [partA1, partB1],
+		isStatic: true,
+		collisionFilter: {
+			category: blueCategory
+		}
+	});
+	partA1.label='barrel';
+	partB1.label='launch';
+	//
+	var sponge = Bodies.rectangle(500, 450, 150, 40, {
 		angle: Math.PI * 0.02,
 		isStatic: true,
 		collisionFilter: {
-
+			category: blueCategory
+		}
+	});
+	sponge.label='sponge';
+	sponges.push(sponge);
+	//
+	var pad = Bodies.rectangle(400, 350, 150, 40, {
+		angle: Math.PI * 0.05,
+		isStatic: true,
+		collisionFilter: {
 			category: blueCategory
 		}
 	});
 	pad.label = 'pad';
 	var pad2 = Bodies.rectangle(200, 350, 150, 40, {
-		angle: Math.PI * 0.02,
+		angle: Math.PI * 0.05,
 		isStatic: true,
 		collisionFilter: {
-
 			category: blueCategory
 		}
 	});
@@ -204,7 +222,7 @@ function generateItems() {
 			category: defaultCategory
 		}
 	});
-	World.add(engine.world, [partA, partB, partC, pad,pad2, ground]);
+	World.add(engine.world, [partA, partB, partC, pad,pad2,comp,sponge, ground]);
 }
 var selectedItem = null;
 function bindEvents() {
@@ -237,12 +255,23 @@ function bindEvents() {
 		for (i = 0; i < length; i++) {
 			pair = e.pairs[i];
 			if (pair.bodyB.label === 'drop'){
-				pair.bodyB.collision = true;
+				pair.bodyB.collision = true;			
 			}
-			if (pair.bodyB.label === 'drop' && pair.bodyA.label === 'pad') {			
-				if(pair.bodyB.force.x>0 || pair.bodyB.force.y>0){
-					pair.bodyB.acceleration= {x: pair.bodyB.force.x,y:pair.bodyB.force.y};
-				}	
+			if (pair.bodyB.label === 'drop' && pair.bodyA.label === 'sponge') {
+				//pair.bodyA.stored = pair.bodyA.stored + 1 || 0;
+				pair.bodyA.stored = pair.bodyA.stored || [];
+				pair.bodyA.stored.push(pair.bodyB);
+				pair.bodyB.absorbed = true;
+				pair.bodyB.life = 0;
+				pair.bodyB.soaked = {parent: pair.bodyA, mass:pair.bodyB.mass, inertia:pair.bodyB.inertia, emit:40};
+			}else if (pair.bodyB.label === 'drop' && pair.bodyA.label === 'launch') {
+				var xlen = Math.cos(pair.bodyA.angle)*130;
+				var ylen = Math.sin(pair.bodyA.angle)*130;
+				pair.bodyB.launch = {angle:pair.bodyA.angle,x:pair.bodyA.position.x-xlen,y:pair.bodyA.position.y-ylen};
+			}else if (pair.bodyB.label === 'drop' && pair.bodyA.label === 'pad') {
+				if(pair.bodyB.force.x > 0 || pair.bodyB.force.y > 0){
+					pair.bodyB.acceleration = {x: pair.bodyB.force.x,y:pair.bodyB.force.y};
+				}
 			} else if (pair.bodyB.label == 'drop' && pair.bodyA.label == 'cup') {
 				reposition(pair.bodyB);
 				count++;
@@ -280,17 +309,57 @@ function bindEvents() {
 		}
 	});
 	Events.on(engine, 'afterUpdate', function(event) {
-		for (var i = 0; i < bodies.length; i++) {
-			if (bodies[i].acceleration) {			
+		checkSponges();
+		var i;	
+		for (i = 0; i < bodies.length; i++) {
+			if(bodies[i].soaked && !bodies[i].absorbed && !bodies[i].eject){
+				//should be off screen and not rendered
+				bodies[i].soaked.emit--;
+				if(bodies[i].soaked.emit < 0){
+					bodies[i].eject = true;
+					var pos = bodies[i].soaked.parent.stored.indexOf(bodies[i]);
+					bodies[i].soaked.parent.stored.splice(pos,1);
+				}
+			}else if(bodies[i].absorbed){
+				//should be off screen and not rendered
+				Body.setPosition(bodies[i], { x: 500, y: 40 });
+				Body.setStatic(bodies[i], true);
+				bodies[i].absorbed = null;
+			}else if (bodies[i].eject) {
+				var bx = bodies[i].soaked.parent.position.x;
+				var by = bodies[i].soaked.parent.position.y;
+				var spongeHalfHeight = 20;
+				var spongeHalfWidth = 75;
+				var dropRadius = 5;
+				var ang = bodies[i].soaked.parent.angle % (Math.PI);
+				//drop radius
+				hip = spongeHalfHeight / Math.cos(ang) + dropRadius / Math.cos(ang);
+				var spongeCrossSection = Math.atan2(spongeHalfHeight,spongeHalfWidth);
+				//if in vertical position
+				if(ang  + spongeCrossSection > Math.PI/2 && ang - spongeCrossSection < Math.PI/2){
+					hip = spongeHalfWidth / Math.cos(Math.PI/2 - ang) + dropRadius / Math.cos(Math.PI/2 - ang);
+				}
+				Body.setPosition(bodies[i], { x: bx, y: by + Math.abs(hip)});
+				Body.setStatic(bodies[i], false);			
+				Matter.Sleeping.set(bodies[i],false);		
+				Body.setMass(bodies[i], bodies[i].soaked.mass);
+				Body.setInertia(bodies[i],  bodies[i].soaked.inertia);
+				bodies[i].eject = null;
+				bodies[i].soaked = null;
+			}else if (bodies[i].acceleration) {		
 				var ang = -Math.atan2(bodies[i].acceleration.y , bodies[i].acceleration.x );
 				var force = Math.sqrt(bodies[i].acceleration.y*bodies[i].acceleration.y + bodies[i].acceleration.x*bodies[i].acceleration.x) * 20;
-				//should be relative to drop velocity
-				//0.002;
 				Body.applyForce(bodies[i], bodies[i].position, {
 					x: Math.cos(ang) * force,
 					y: Math.sin(ang) * force
 				});
 				bodies[i].acceleration = null;
+			}else if(bodies[i].launch){
+				var ang = bodies[i].launch.angle+Math.PI;
+				console.log('launch',ang);
+				Body.setPosition(bodies[i], { x: bodies[i].launch.x, y: bodies[i].launch.y });
+				Body.setVelocity(bodies[i], { x:Math.cos(ang)*10, y: Math.sin(ang)*10 });
+				bodies[i].launch = null;
 			}
 		}
 	});
@@ -315,12 +384,9 @@ function bindEvents() {
 				reposition(bodies[i]);
 				continue;
 			}
-			if (bodies[i].speed < 0.3 && bodies[i].angularSpeed < 0.1) {
+			if (!bodies[i].soaked && bodies[i].speed < 0.3) {
 				bodies[i].life++;
 				continue;
-			}
-			if(bodies[i].isSleeping){
-				console.log('zzz');
 			}
 			if (bodies[i].life > 100) {
 				reposition(bodies[i]);
@@ -345,8 +411,17 @@ function reposition(body) {
 	body.life = 0;
 }
 
+function checkSponges() {
+	for(i=0;i<sponges.length; i++){
+		if(sponges[i].stored && sponges[i].stored.length>10){
+			var drop = sponges[i].stored.shift();
+			drop.eject = true;
+		}
+	}
+}
 function render() {
 	stats.begin();
+
 	var bodies = Composite.allBodies(engine.world);
 	context.fillStyle = '#11001d';
 	context.fillRect(0, 0, canvas.width, canvas.height);

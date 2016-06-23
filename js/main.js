@@ -6,7 +6,8 @@ Composite = Matter.Composite,
 Events = Matter.Events,
 MouseConstraint = Matter.MouseConstraint,
 Bounds = Matter.Bounds,
-Mouse = Matter.Mouse;
+Mouse = Matter.Mouse,
+Vertices= Matter.Vertices;
 //
 var defaultCategory = 0x0001,
 redCategory = 0x0002,
@@ -83,7 +84,6 @@ function handleTouchStart(event) {
 	rotationMode = false;
 	//calculate radius
 	if(selectedItem){
-		console.log(selectedItem.position);
 		var distance = Math.sqrt(Math.pow(event.changedTouches[0].pageX*REZ_MULTIPLIER-(selectedItem.position.x-transformBounds.min.x)/transformScale.x,2) + Math.pow(event.changedTouches[0].pageY*REZ_MULTIPLIER-(selectedItem.position.y-transformBounds.min.y)/transformScale.y,2));
 		if(distance > selectionCircleSize.min && distance < selectionCircleSize.max){
 			rotationMode = true;
@@ -104,7 +104,6 @@ function handleTouchEnd(event) {
 	handleMoveStarted = false;
 	transformBounds.prev.x = transformBounds.min.x;
 	transformBounds.prev.y = transformBounds.min.y;
-	console.log('end');
 	moving = false;
 }
 function handleTouchMove(event) {
@@ -113,7 +112,6 @@ function handleTouchMove(event) {
 	}
 	handleMoveStarted = true;
 	//always fired before startdrag
-	console.log("handleMove",moving);
 	event.preventDefault();
 	var touches = event.changedTouches;
 	for (var i = 0; i < touches.length; i++) {
@@ -124,7 +122,6 @@ function handleTouchMove(event) {
 	}
 			
 	setTimeout(function(){
-		console.log("handleMove timeout, moving:",moving,'zooming:',zooming);
 		if(!moving && handleMoveStarted){
 			zooming = true;
 		}
@@ -155,6 +152,11 @@ function generateDrops() {
 }
 
 function generateItems() {
+	var chevron = Vertices.create([	{x:0,y: 0},{x:161,y: 414},{x:600,y: 414},{x:596,y: 404},{x:228,y: 404},{x:153,y: 210},{x:103,y: 210},{x:22,y: 0}]);
+	var trig = Bodies.fromVertices(200,400,chevron);
+	trig.isStatic = true;
+	World.add(engine.world, [trig], true);
+	//
 	var partA1 = Bodies.rectangle(600, 200, 120, 50),
 	partB1 = Bodies.circle(660, 200, 20),
 	comp = Body.create({
@@ -222,7 +224,7 @@ function generateItems() {
 			category: defaultCategory
 		}
 	});
-	World.add(engine.world, [partA, partB, partC, pad,pad2,comp,sponge, ground]);
+	World.add(engine.world, [partA, partB, partC, pad, pad2, comp, sponge, ground]);
 }
 var selectedItem = null;
 function bindEvents() {
@@ -234,7 +236,6 @@ function bindEvents() {
 	Events.on(mouseConstraint, "mousemove", setDragPosition);
 
 	Events.on(mouseConstraint, "startdrag", function(e) {
-		console.log("startdrag", moving, zooming, e.body.label);
 		if(zooming){
 			return;
 		}
@@ -356,7 +357,6 @@ function bindEvents() {
 				bodies[i].acceleration = null;
 			}else if(bodies[i].launch){
 				var ang = bodies[i].launch.angle+Math.PI;
-				console.log('launch',ang);
 				Body.setPosition(bodies[i], { x: bodies[i].launch.x, y: bodies[i].launch.y });
 				Body.setVelocity(bodies[i], { x:Math.cos(ang)*10, y: Math.sin(ang)*10 });
 				bodies[i].launch = null;
@@ -370,7 +370,6 @@ function bindEvents() {
 				var calculatedAngle = ang - selectedItem.angInit + selectedItem.currentAngle + Math.PI;
 				calculatedAngle = calculatedAngle % (Math.PI*2);
 				Body.setAngle(selectedItem, calculatedAngle);
-				//console.log('beforeUpdate',Utils.radiansToDegrees(ang),Utils.radiansToDegrees(calculatedAngle));
 			} else {
 				Body.setPosition(selectedItem, {
 					x: posX + selectedItem.offset.x,
